@@ -1,5 +1,8 @@
 #include "../include/NeuralNetwork.hpp"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "../include/stb_image.h"
+
 NeuralNetwork::NeuralNetwork(std::vector<int> layers) : layers(layers) {
     outputs.resize(layers.size());
         for (size_t i = 0; i < layers.size(); i++) {
@@ -10,6 +13,8 @@ NeuralNetwork::NeuralNetwork(std::vector<int> layers) : layers(layers) {
         int neuronsInPrev = layers[i];
         int neuronsInCurrent = layers[i + 1];
 
+        double limit = std::sqrt(6.0 / (neuronsInPrev + neuronsInCurrent));
+
         std::vector<std::vector<double>> layerWeights;
         std::vector<double> layerBiases;
 
@@ -17,10 +22,10 @@ NeuralNetwork::NeuralNetwork(std::vector<int> layers) : layers(layers) {
             std::vector<double> neuronWeights;
 
             for (int w = 0; w < neuronsInPrev; w++) {
-                neuronWeights.push_back(randomDouble());
+                neuronWeights.push_back(randomDouble(-limit, limit));
             }
             layerWeights.push_back(neuronWeights);
-            layerBiases.push_back(randomDouble());
+            layerBiases.push_back(0.0);
         }
         weights.push_back(layerWeights);
         biases.push_back(layerBiases);
@@ -44,7 +49,14 @@ std::vector<double> NeuralNetwork::forward(const std::vector<double> &input) {
                 sum += outputs[prevNeuron] * weights[layer - 1][neuron][prevNeuron];
             }
             sum += biases[layer - 1][neuron];
-            nextOutputs[neuron] = sigmoid(sum);
+            nextOutputs[neuron] = sum;
+        }
+        if (layer == layers.size() - 1) {
+            nextOutputs = softmax(nextOutputs);
+        } else {
+            for (auto &val : nextOutputs) {
+                val = sigmoid(val);
+            }
         }
         outputs = nextOutputs;
     }
@@ -61,34 +73,54 @@ double NeuralNetwork::meanSquaredError(const std::vector<double> &predicted, con
     return sum / predicted.size();
 }
 
+double NeuralNetwork::categoricalCrossEntropy(const std::vector<double>& output, const std::vector<double>& target) {
+    double loss = 0.0;
+
+    for (size_t i = 0; i < output.size(); i++) {
+        if (target[i] == 1) {
+            loss = -std::log(output[i] + 1e-15);
+            break;
+        }
+    }
+    return loss;
+}
+
 void NeuralNetwork::backPropagate(const std::vector<double> &input, const std::vector<double> &target, double learningRate) {
-    // Forward pass to get activations
+    // Forward pass to get activations (raw logits at output layer)
     std::vector<std::vector<double>> activations;
     activations.push_back(input);
 
     for (size_t layer = 1; layer < layers.size(); layer++) {
         std::vector<double> layerActivation(layers[layer], 0.0);
 
-        for (int neuron = 0; neuron < layers[layer]; neuron++) {
+        for (size_t neuron = 0; neuron < layers[layer]; neuron++) {
             double z = biases[layer - 1][neuron];
-            for (int prevNeuron = 0; prevNeuron < layers[layer - 1]; prevNeuron++) {
+            for (size_t prevNeuron = 0; prevNeuron < layers[layer - 1]; prevNeuron++) {
                 z += activations[layer - 1][prevNeuron] * weights[layer - 1][neuron][prevNeuron];
             }
-            layerActivation[neuron] = sigmoid(z);
+            if (layer == layers.size() - 1) {
+                // Output layer: raw logits, no sigmoid
+                layerActivation[neuron] = z;
+            } else {
+                // Hidden layers: sigmoid activation
+                layerActivation[neuron] = sigmoid(z);
+            }
         }
         activations.push_back(layerActivation);
     }
 
-    // Calculate deltas
+    // Calculate deltas vector, size = number of layers
     std::vector<std::vector<double>> deltas(layers.size());
 
+    // Output layer delta: softmax + cross-entropy derivative
+    std::vector<double> outputActivations = softmax(activations.back());
     deltas.back() = std::vector<double>(layers.back());
-    for (int neuron = 0; neuron < layers.back(); neuron++) {
-        double output = activations.back()[neuron];
-        double error = target[neuron] - output;
-        deltas.back()[neuron] = error * sigmoidDerivative(output);
+
+    for (size_t neuron = 0; neuron < layers.back(); neuron++) {
+        deltas.back()[neuron] = outputActivations[neuron] - target[neuron];
     }
 
+    // Backpropagate deltas through hidden layers
     for (int layer = layers.size() - 2; layer > 0; layer--) {
         deltas[layer] = std::vector<double>(layers[layer], 0.0);
         for (int neuron = 0; neuron < layers[layer]; neuron++) {
@@ -96,7 +128,7 @@ void NeuralNetwork::backPropagate(const std::vector<double> &input, const std::v
             for (int nextNeuron = 0; nextNeuron < layers[layer + 1]; nextNeuron++) {
                 error += deltas[layer + 1][nextNeuron] * weights[layer][nextNeuron][neuron];
             }
-            double output = activations[layer][neuron];
+            double output = activations[layer][neuron]; // sigmoid output
             deltas[layer][neuron] = error * sigmoidDerivative(output);
         }
     }
@@ -105,9 +137,9 @@ void NeuralNetwork::backPropagate(const std::vector<double> &input, const std::v
     for (size_t layer = 0; layer < weights.size(); layer++) {
         for (int neuron = 0; neuron < layers[layer + 1]; neuron++) {
             for (int prevNeuron = 0; prevNeuron < layers[layer]; prevNeuron++) {
-                weights[layer][neuron][prevNeuron] += learningRate * deltas[layer + 1][neuron] * activations[layer][prevNeuron];
+                weights[layer][neuron][prevNeuron] -= learningRate * deltas[layer + 1][neuron] * activations[layer][prevNeuron];
             }
-            biases[layer][neuron] += learningRate * deltas[layer + 1][neuron];
+            biases[layer][neuron] -= learningRate * deltas[layer + 1][neuron];
         }
     }
 }
@@ -190,4 +222,42 @@ double NeuralNetwork::randomDouble(double min, double max) {
     static thread_local std::mt19937 rng(std::random_device{}());
     std::uniform_real_distribution<double> dist(min, max);
     return dist(rng);
+}
+
+std::vector<double> NeuralNetwork::softmax(const std::vector<double> &logits) {
+    std::vector<double> exps(logits.size());
+    double maxLogit = *std::max_element(logits.begin(), logits.end());
+    double sum = 0.0;
+
+    for (size_t i = 0; i < logits.size(); i++) {
+        exps[i] = std::exp(logits[i] - maxLogit); // for numerical stability
+        sum += exps[i];
+    }
+    for (size_t i = 0; i < exps.size(); i++) {
+        exps[i] /= sum;
+    }
+    return exps;
+}
+
+std::vector<double> NeuralNetwork::loadAndNormalizeImage(const char *filename) {
+    int width, height, channels;
+
+    unsigned char *data = stbi_load(filename, &width, &height, &channels, 1);
+    if (!data) {
+        std::cerr << "Failed to load image: " << filename << std::endl;
+        return {};
+    }
+    if (width != 28 || height != 28) {
+        std::cerr << "Image must be 28x28 pixels." << std::endl;
+        free(data);
+        return {};
+    }
+
+    std::vector<double> normalizedPixels(width * height);
+
+    for (int i = 0; i < width * height; i++) {
+        normalizedPixels[i] = data[i] / 255.0;
+    }
+    free(data);
+    return normalizedPixels;
 }

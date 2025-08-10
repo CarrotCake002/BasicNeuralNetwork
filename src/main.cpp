@@ -1,110 +1,48 @@
 #include "../include/NeuralNetwork.hpp"
+namespace fs = std::filesystem;
 
-std::vector<std::vector<double>> inputs = {
-    // Pure primaries
-    {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0},
-    // Secondaries & blends
-    {1.0, 1.0, 0.0}, {0.0, 1.0, 1.0}, {1.0, 0.0, 1.0},
-    // Grays
-    {0.1, 0.1, 0.1}, {0.3, 0.3, 0.3}, {0.5, 0.5, 0.5}, {0.7, 0.7, 0.7}, {0.9, 0.9, 0.9},
-    // Midtones
-    {0.4, 0.6, 0.2}, {0.6, 0.4, 0.2}, {0.2, 0.6, 0.4}, {0.4, 0.2, 0.6}, {0.6, 0.2, 0.4}, {0.2, 0.4, 0.6},
-    // Pastels
-    {0.8, 0.6, 0.7}, {0.7, 0.8, 0.6}, {0.6, 0.7, 0.8},
-    // Dark tones
-    {0.1, 0.0, 0.2}, {0.2, 0.1, 0.0}, {0.0, 0.2, 0.1},
-    // Bright variants
-    {0.9, 0.5, 0.2}, {0.5, 0.9, 0.2}, {0.2, 0.5, 0.9},
-    // Weird combos
-    {0.3, 0.7, 0.9}, {0.9, 0.3, 0.7}, {0.7, 0.9, 0.3},
-    {0.1, 0.9, 0.7}, {0.7, 0.1, 0.9}, {0.9, 0.7, 0.1},
-    // Low saturations
-    {0.2, 0.2, 0.15}, {0.15, 0.2, 0.2}, {0.2, 0.15, 0.2},
-    // High saturations
-    {0.95, 0.1, 0.05}, {0.05, 0.95, 0.1}, {0.1, 0.05, 0.95},
-    // Random floats
-    {0.43, 0.28, 0.39}, {0.11, 0.55, 0.77}, {0.88, 0.44, 0.22}, {0.33, 0.66, 0.99},
-    {0.76, 0.82, 0.14}, {0.24, 0.18, 0.88}, {0.67, 0.33, 0.55},
-    // Earthy tones
-    {0.55, 0.47, 0.36}, {0.33, 0.27, 0.19}, {0.76, 0.69, 0.55}, {0.5, 0.4, 0.3},
-    // Neon vibes
-    {0.8, 1.0, 0.0}, {1.0, 0.0, 0.5}, {0.0, 1.0, 0.8},
-    // Dark neons
-    {0.4, 0.5, 0.0}, {0.5, 0.0, 0.3}, {0.0, 0.4, 0.5},
-    // Metallic-ish
-    {0.7, 0.7, 0.8}, {0.6, 0.6, 0.7}, {0.8, 0.8, 0.9},
-    // Some random pastels
-    {0.9, 0.7, 0.8}, {0.8, 0.9, 0.7}, {0.7, 0.8, 0.9},
-    // More randoms for chaos
-    {0.12, 0.77, 0.43}, {0.56, 0.23, 0.89}, {0.81, 0.44, 0.12},
-    {0.45, 0.56, 0.67}, {0.29, 0.81, 0.33}, {0.61, 0.19, 0.48},
-    {0.71, 0.35, 0.64}, {0.48, 0.22, 0.53}, {0.57, 0.69, 0.31},
-    {0.22, 0.39, 0.45}, {0.34, 0.51, 0.27}, {0.15, 0.29, 0.64},
-    // Black & white extremes
-    {0.0, 0.0, 0.0}, {1.0, 1.0, 1.0},
-};
-
-
-std::vector<std::vector<double>> targets = {
-    // Pure primaries
-    {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0},
-    // Secondaries & blends
-    {1.0, 1.0, 0.0}, {0.0, 1.0, 1.0}, {1.0, 0.0, 1.0},
-    // Grays
-    {0.1, 0.1, 0.1}, {0.3, 0.3, 0.3}, {0.5, 0.5, 0.5}, {0.7, 0.7, 0.7}, {0.9, 0.9, 0.9},
-    // Midtones
-    {0.4, 0.6, 0.2}, {0.6, 0.4, 0.2}, {0.2, 0.6, 0.4}, {0.4, 0.2, 0.6}, {0.6, 0.2, 0.4}, {0.2, 0.4, 0.6},
-    // Pastels
-    {0.8, 0.6, 0.7}, {0.7, 0.8, 0.6}, {0.6, 0.7, 0.8},
-    // Dark tones
-    {0.1, 0.0, 0.2}, {0.2, 0.1, 0.0}, {0.0, 0.2, 0.1},
-    // Bright variants
-    {0.9, 0.5, 0.2}, {0.5, 0.9, 0.2}, {0.2, 0.5, 0.9},
-    // Weird combos
-    {0.3, 0.7, 0.9}, {0.9, 0.3, 0.7}, {0.7, 0.9, 0.3},
-    {0.1, 0.9, 0.7}, {0.7, 0.1, 0.9}, {0.9, 0.7, 0.1},
-    // Low saturations
-    {0.2, 0.2, 0.15}, {0.15, 0.2, 0.2}, {0.2, 0.15, 0.2},
-    // High saturations
-    {0.95, 0.1, 0.05}, {0.05, 0.95, 0.1}, {0.1, 0.05, 0.95},
-    // Random floats
-    {0.43, 0.28, 0.39}, {0.11, 0.55, 0.77}, {0.88, 0.44, 0.22}, {0.33, 0.66, 0.99},
-    {0.76, 0.82, 0.14}, {0.24, 0.18, 0.88}, {0.67, 0.33, 0.55},
-    // Earthy tones
-    {0.55, 0.47, 0.36}, {0.33, 0.27, 0.19}, {0.76, 0.69, 0.55}, {0.5, 0.4, 0.3},
-    // Neon vibes
-    {0.8, 1.0, 0.0}, {1.0, 0.0, 0.5}, {0.0, 1.0, 0.8},
-    // Dark neons
-    {0.4, 0.5, 0.0}, {0.5, 0.0, 0.3}, {0.0, 0.4, 0.5},
-    // Metallic-ish
-    {0.7, 0.7, 0.8}, {0.6, 0.6, 0.7}, {0.8, 0.8, 0.9},
-    // Some random pastels
-    {0.9, 0.7, 0.8}, {0.8, 0.9, 0.7}, {0.7, 0.8, 0.9},
-    // More randoms for chaos
-    {0.12, 0.77, 0.43}, {0.56, 0.23, 0.89}, {0.81, 0.44, 0.12},
-    {0.45, 0.56, 0.67}, {0.29, 0.81, 0.33}, {0.61, 0.19, 0.48},
-    {0.71, 0.35, 0.64}, {0.48, 0.22, 0.53}, {0.57, 0.69, 0.31},
-    {0.22, 0.39, 0.45}, {0.34, 0.51, 0.27}, {0.15, 0.29, 0.64},
-    // Black & white extremes
-    {0.0, 0.0, 0.0}, {1.0, 1.0, 1.0},
-};
-
-std::vector<std::vector<double>> generateTestingData(void) {
-    std::vector<std::vector<double>> tests;
-
-    const double step = 0.1;  // smaller step = bigger dataset
-    for (double r = 0.0; r <= 1.0; r += step) {
-        for (double g = 0.0; g <= 1.0; g += step) {
-            for (double b = 0.0; b <= 1.0; b += step) {
-                tests.push_back({r, g, b});
-            }
+void printAsciiImage(const std::vector<double>& pixels, int width = 28, int height = 28) {
+    const std::string shades = " .:-=+*#%@"; // from light to dark
+    for (int y = 0; y < height; ++y) {
+        for (int x = 0; x < width; ++x) {
+            double val = pixels[y * width + x]; // assuming normalized 0..1
+            int shadeIndex = static_cast<int>(val * (shades.size() - 1));
+            std::cout << shades[shadeIndex];
         }
+        std::cout << "\n";
     }
-    return tests;
+}
+
+void loadImagesAndTargets(std::vector<std::vector<double>> &inputs, std::vector<std::vector<double>> &targets, NeuralNetwork &nn) {
+    std::string datasetPath = "/home/carrotcake/documents/projects/personal/BasicNeuralNetwork/assets/mnist_images/";
+
+    for (const auto& entry : fs::directory_iterator(datasetPath)) {
+        if (!entry.is_regular_file()) continue;
+
+        const std::string filename = entry.path().string();
+        auto inputVec = nn.loadAndNormalizeImage(filename.c_str());
+        if (inputVec.empty()) continue;  // skip failed loads
+
+        inputs.push_back(inputVec);
+
+        // Extract label from filename: assuming "7_123.png" format, label is first char
+        char labelChar = entry.path().filename().string()[entry.path().filename().string().size() - 5];
+        int label = labelChar - '0';
+
+        std::vector<double> oneHot(10, 0.0);
+        if (label >= 0 && label < 10) {
+            oneHot[label] = 1.0;
+        } else {
+            std::cerr << "Invalid label in filename: " << filename << std::endl;
+            continue;
+        }
+
+        targets.push_back(oneHot);
+    }
 }
 
 int main(int argc, char *argv[]) {
-    NeuralNetwork nn({3, 6, 6, 3});
+    NeuralNetwork nn({784, 128, 64, 10});
     std::string pathToModels = "../models/";
     std::string fileExtension = ".bin";
 
@@ -112,22 +50,50 @@ int main(int argc, char *argv[]) {
         std::string mode = argv[1];
         
         if (mode == "train") {
-            int maxEpochs = 5000000;
-            int displayLoss = 50000;
-            double learningRate = 0.1;
-            std::vector<double> outputs;
+            // Load all images + targets first
+            std::vector<std::vector<double>> inputs;
+            std::vector<std::vector<double>> targets;
+            loadImagesAndTargets(inputs, targets, nn);
+
+            int maxEpochs = 1000;
+            int displayLoss = 100;
+            double learningRate = 0.001;
+            std::random_device rd;
+            std::mt19937 g(rd());
+            int batchSize = 32;
+            int saveInterval = 500;
 
             for (int epoch = 0; epoch < maxEpochs; epoch++) {
                 double totalLoss = 0.0;
-                for (size_t i = 0; i < inputs.size(); i++) {
 
-                    std::vector<double> prediction = nn.forward(inputs[i]);
-                    totalLoss += nn.meanSquaredError(prediction, targets[i]);
-                    nn.backPropagate(inputs[i], targets[i], learningRate);
+                // Shuffle dataset indices
+                std::vector<size_t> indices(inputs.size());
+                std::iota(indices.begin(), indices.end(), 0);
+                std::shuffle(indices.begin(), indices.end(), g);
+
+                // Loop through mini-batches
+                for (size_t batchStart = 0; batchStart < inputs.size(); batchStart += batchSize) {
+                    int batchEnd = std::min(batchStart + batchSize, inputs.size());
+
+                    // Accumulate gradients over this batch
+                    // (if your NN doesn't support explicit gradient accumulation, do backprop per sample but average loss)
+                    for (size_t idx = batchStart; idx < batchEnd; idx++) {
+                        auto prediction = nn.forward(inputs[indices[idx]]);
+                        totalLoss += nn.categoricalCrossEntropy(prediction, targets[indices[idx]]);
+                        nn.backPropagate(inputs[indices[idx]], targets[indices[idx]], learningRate);
+                    }
                 }
-                if (epoch % displayLoss == 0)
+
+                if (epoch % displayLoss == 0) {
                     std::cout << "Epoch: " << epoch << " - Loss: " << totalLoss / inputs.size() << "\n";
+                }
+                if (epoch > 0 && epoch % saveInterval == 0) {
+                    std::string filename = pathToModels + "model_epoch_" + std::to_string(epoch) + fileExtension;
+                    nn.saveModel(filename);
+                    std::cout << "Model checkpoint saved at epoch " << epoch << " to " << filename << std::endl;
+                }
             }
+
             if (argc > 2) {
                 nn.saveModel(pathToModels + argv[2] + fileExtension);
                 std::cout << "Model saved to " << argv[2] << fileExtension << std::endl;
@@ -138,25 +104,34 @@ int main(int argc, char *argv[]) {
         }
         else if (mode == "test") {
             if (argc > 2) {
-                std::vector<std::vector<double>> tests = generateTestingData();
-                nn.loadModel(pathToModels + argv[2] + fileExtension);
-                std::cout << "Model loaded from " << argv[2] << fileExtension << std::endl;
+                if (argc > 3) {
+                    auto test = nn.loadAndNormalizeImage(argv[3]);
+                    printAsciiImage(test);
+                    nn.loadModel(pathToModels + argv[2] + fileExtension);
+                    std::cout << "Model loaded from " << argv[2] << fileExtension << std::endl;
 
-                for (const auto& test : tests) {
                     auto output = nn.forward(test);
 
-                    // Print the RGB input
-                    std::cout << "Input: (" 
-                            << test[0] << ", " 
-                            << test[1] << ", " 
-                            << test[2] << ") Output: ";
+                    std::cout << "Output probabilities: ";
+                    size_t predictedDigit = 0;
+                    double maxProb = output[0];
 
-                    // Print all output probabilities
                     for (size_t i = 0; i < output.size(); ++i) {
                         std::cout << output[i];
                         if (i != output.size() - 1) std::cout << ", ";
+
+                        if (output[i] > maxProb) {
+                            maxProb = output[i];
+                            predictedDigit = i;
+                        }
                     }
                     std::cout << std::endl;
+
+                    std::cout << "Predicted digit: " << predictedDigit 
+                            << " (Confidence: " << maxProb * 100.0 << "%)" << std::endl;
+                } else {
+                    std::cerr << "Please provide a filename to load the image\n";
+                    return -1;
                 }
             } else {
                 std::cerr << "Please provide a filename to load model.\n";
